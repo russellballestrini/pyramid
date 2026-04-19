@@ -2264,16 +2264,21 @@ class StaticURLInfo:
         def register():
             registrations = self.registrations
 
-            # CWE-407 fix: O(1) dict lookup instead of O(R) list comprehension.
-            # Rebuild index if registrations were modified externally (e.g. tests).
+            # CWE-407 fix: O(1) dict lookup instead of O(R) list scan.
+            # Rebuild index if registrations were modified externally
+            # (e.g. tests).
             if len(self._name_index) != len(registrations):
-                self._name_index = {t[0]: i for i, t in enumerate(registrations)}
+                self._name_index = {
+                    t[0]: i for i, t in enumerate(registrations)
+                }
 
             if name in self._name_index:
                 idx = self._name_index[name]
                 registrations.pop(idx)
                 # rebuild index after pop since indices shift
-                self._name_index = {t[0]: i for i, t in enumerate(registrations)}
+                self._name_index = {
+                    t[0]: i for i, t in enumerate(registrations)
+                }
 
             # url, spec, route_name
             registrations.append((url, spec, route_name))

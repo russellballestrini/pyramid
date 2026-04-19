@@ -1,9 +1,9 @@
 """
 Regression tests for CWE-407 (Algorithmic Complexity) fixes.
 
-Strategy: run each operation at two sizes — N_small and N_large = SCALE * N_small
-— and assert the time ratio is below SCALE * TOLERANCE. This catches quadratic
-regressions (ratio ≈ SCALE²) while allowing constant-factor noise.
+Strategy: run each operation at two sizes — N_small and N_large (= SCALE
+* N_small) — and assert the time ratio is below SCALE * TOLERANCE. This
+catches quadratic regressions (ratio ≈ SCALE²) while allowing noise.
 
 With SCALE=10 and TOLERANCE=4:
   - Linear behavior:    ratio ≈ 10x  → passes (10 < 40)
@@ -43,7 +43,7 @@ def _assert_linear(test, label, t_small, t_large):
         ratio,
         limit,
         f"{label} regression detected: "
-        f"small={t_small*1000:.2f}ms large={t_large*1000:.2f}ms "
+        f"small={t_small * 1000:.2f}ms large={t_large * 1000:.2f}ms "
         f"ratio={ratio:.1f}x limit={limit}x — "
         f"expected O(N), got O(N\u00b2) or worse",
     )
@@ -94,7 +94,7 @@ class TestCWE407RoutesMapper(unittest.TestCase):
         self.assertEqual(len(m.routelist), 0)
 
     def test_connect_membership_check_uses_set_not_list(self):
-        """The `oldroute in routelist` check must use _routeset, not a list scan.
+        """Membership check must use _routeset, not scan routelist.
 
         We inject a spy list subclass as routelist. With the shadow set fix,
         routelist.__contains__ must never be called from connect().
@@ -113,7 +113,7 @@ class TestCWE407RoutesMapper(unittest.TestCase):
         spy = SpyList()
         m.routelist = spy
 
-        # Verify SpyList.__contains__ works before testing that it is NOT called.
+        # Verify SpyList.__contains__ works before asserting it is NOT called.
         self.assertNotIn('sentinel', spy)
         self.assertEqual(spy.contains_calls, ['sentinel'])
         spy.contains_calls.clear()
@@ -122,7 +122,7 @@ class TestCWE407RoutesMapper(unittest.TestCase):
         for i in range(20):
             m.connect(f'r{i}', f'/p/{i}')
 
-        # replace 10 existing routes — should use _routeset, not spy.__contains__
+        # replace 10 routes — must use _routeset, not spy.__contains__
         before = len(spy.contains_calls)
         for i in range(10):
             m.connect(f'r{i}', f'/p/{i}/v2')
@@ -132,7 +132,8 @@ class TestCWE407RoutesMapper(unittest.TestCase):
             after - before,
             0,
             f"routelist.__contains__ called {after - before} times during "
-            f"route replacement — pyramid-0001 fix was reverted (should use _routeset)",
+            f"route replacement — pyramid-0001 fix was reverted "
+            f"(should use _routeset)",
         )
 
 
@@ -162,7 +163,7 @@ class TestCWE407StaticURLInfo(unittest.TestCase):
         self.assertIsInstance(inst._name_index, dict)
 
     def test_name_index_tracks_registrations(self):
-        """After register() calls, _name_index length must match registrations."""
+        """_name_index length must match registrations after register()."""
         inst = self._makeOne()
         inst.registrations.append(('http://a.com/', 'pkg:a/', None))
         inst._name_index['http://a.com/'] = 0
@@ -290,17 +291,18 @@ class TestCWE407TopologicalSorter(unittest.TestCase):
 
     def test_deque_imported(self):
         """pyramid.util must import collections.deque."""
-        import pyramid.util as pu
         from collections import deque
+
+        import pyramid.util as pu
 
         self.assertTrue(
             hasattr(pu, 'deque'),
-            "deque not imported in pyramid.util — pyramid-0004 fix was reverted",
+            "deque not imported in pyramid.util — pyramid-0004 reverted",
         )
         self.assertIs(pu.deque, deque)
 
     def test_sorted_correct_with_chain(self):
-        """Topological sort of a linear chain must return nodes in dependency order."""
+        """Topological sort of a linear chain returns nodes in order."""
         sorter = self._makeOne()
         sorter.add('a', 'val_a')
         sorter.add('b', 'val_b', after='a')
@@ -319,7 +321,7 @@ class TestCWE407TopologicalSorter(unittest.TestCase):
                 sorter = self._makeOne()
                 sorter.add('n0', 0)
                 for i in range(1, n):
-                    sorter.add(f'n{i}', i, after=f'n{i-1}')
+                    sorter.add(f'n{i}', i, after=f'n{i - 1}')
                 sorter.sorted()
 
             return inner
@@ -375,7 +377,7 @@ class TestCWE407Introspector(unittest.TestCase):
             )
 
     def test_refs_set_shadows_refs(self):
-        """_refs_set must contain the same members as the corresponding _refs list."""
+        """_refs_set members must match the corresponding _refs list."""
         inst = self._makeOne()
         a = self._intr('x', 'a')
         b = self._intr('x', 'b')
@@ -479,7 +481,7 @@ class TestHelpers(unittest.TestCase):
 
 
 class TestCWE407StaticURLInfoDedup(unittest.TestCase):
-    """Structural test: dedup path in _name_index (duplicate-name registration)."""
+    """Structural test: dedup path in _name_index (duplicate name)."""
 
     def _makeOne(self):
         from pyramid.config.views import StaticURLInfo
@@ -492,9 +494,13 @@ class TestCWE407StaticURLInfoDedup(unittest.TestCase):
         not reachable via unique-name inputs in the linear-scaling test."""
         inst = self._makeOne()
         # Register three unique names then overwrite the first one.
-        inst.registrations.append(('http://cdn0.example.com/', 'pkg0:s/', None))
+        inst.registrations.append(
+            ('http://cdn0.example.com/', 'pkg0:s/', None)
+        )
         inst._name_index['http://cdn0.example.com/'] = 0
-        inst.registrations.append(('http://cdn1.example.com/', 'pkg1:s/', None))
+        inst.registrations.append(
+            ('http://cdn1.example.com/', 'pkg1:s/', None)
+        )
         inst._name_index['http://cdn1.example.com/'] = 1
 
         name = 'http://cdn0.example.com/'

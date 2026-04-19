@@ -537,7 +537,9 @@ class TopologicalSorter:
         names_set = set(names)
         has_before, has_after = set(), set()
         for a, b in order:
-            if a in names_set and b in names_set:  # deal with missing dependencies
+            if (
+                a in names_set and b in names_set
+            ):  # deal with missing dependencies
                 add_arc(a, b)
                 has_before.add(a)
                 has_after.add(b)
